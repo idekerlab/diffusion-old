@@ -17,13 +17,18 @@ setup(
     name='diffusiond',
     version='0.1.0',
     description='Heat diffusion daemon',
-    long_description='Sub-network finder using heat diffusion simulation.',
+    long_description='Sub-network finder using heat diffusion simulation',
     author='Daniel Carlin, Keiichiro Ono, Eric Sage',
     author_email='eric.david.sage@gmail.com',
     url='https://github.com/ericsage/diffusiond',
     license='MIT License',
     scripts=['diffuse.py'],
-    packages=['diffusiond'],
+    packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+            'diffusiond = diffuse'
+        ]
+    },
     install_requires=[
         'bottle',
         'ndex',

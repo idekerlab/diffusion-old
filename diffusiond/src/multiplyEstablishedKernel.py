@@ -29,32 +29,3 @@ class EstablishedKernel(kernel.SciPYKernel):
                 ker.append([float(x) for x in line[1:]])
 
         self.kernel=csc_matrix(np.asarray(ker))
-
-
-if __name__=="__main__":
-    parser=OptionParser()
-    parser.add_option("-k","--kernel",dest="kernel", action="store", type="string", default="kernel.txt", help="Tab delimited file containing kernel")
-    parser.add_option("-q","--query", dest="query", action="store", type="string", help="File containing list of query genes, one per line")
-    parser.add_option("-d", "--diffused-query", dest="diffused_query", type="string", default="diffused.txt", help="Output file for diffused query.")
-
-    (opts,args)=parser.parse_args()
-
-    ker=EstablishedKernel(opts.kernel)
-
-    gene_file=opts.query
-
-    f=open(gene_file,'r')
-
-    get_these=[]
-
-    for line in f:
-        get_these.append(line.rstrip())
-
-    queryVec=ahk.queryVector(get_these,ker.labels)
-
-    diffused=ker.diffuse(queryVec)
-    sorted_diffused = sorted(diffused.items(), key=operator.itemgetter(1), reverse=True)
-
-    writer = csv.writer(open(opts.diffused_query, 'wb'))
-    for key, value in sorted_diffused:
-        writer.writerow([key, value])

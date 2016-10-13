@@ -1,104 +1,65 @@
 __author__ = 'decarlin'
 
-# This script is called from the command line to run the enrichment server with the persisted e_sets
-#
-# The script reads all of the e_sets and then starts the bottle server
-#
-# The optional argument 'verbose' specifies verbose logging for testing
-#
-
-#
-# python run_e_service.py
-#
-# python run_e_service.py --verbose
-#
-
-# body
-
-import uuid
-import argparse
-from bottle import route, run, template, default_app, request, post, abort
-import ndex.client as nc
+import sys
+import logging
+import operator
 import json
+import uuid
+import csv
+
+import ndex.client as nc
+
 import diffusiond.src.kernel_scipy as kernel
 import diffusiond.src.automateHeatKernel as ahk
+
 from diffusiond.src.multiplyEstablishedKernel import EstablishedKernel
-import csv
-import operator
 
-parser = argparse.ArgumentParser(description='run the diffusion service')
+def diffuse(cx, identifier_set):
+    """Diffuses a network represented as cx against an identifier_set"""
+    logging.info('Diffusion is now converting the CX json to the SIF format')
+    ndex_network = cxToNDEx(cx)
+    sif_network = ahk.Ndex.ToGeneSif(ndex_network)
+    kernel_id = create_kernel(sif_network)
+    ranked_entities = diffuse_against_kernel(kernel_id, identifier_set)
+    logging.info('Diffusion completed, now returning the ranked entities as json to the caller')
+    return json.dumps(ranked_entities)
 
-parser.add_argument('--verbose', dest='verbose', action='store_const',
-                    const=True, default=False,
-                    help='verbose mode')
-
-arg = parser.parse_args()
-
-if arg.verbose:
-    print "Starting diffusion service in verbose mode"
-else:
-    print "Starting diffusion service"
-
-app = default_app()
-app.config['verbose'] = arg.verbose
-
-app.config['ndex'] = nc.Ndex()
-
-current_kernel_id=None
-username=None
-password=None
-
-@route('/hello')
-def index(name='User'):
-    verbose_mode = app.config.get("verbose")
-    if verbose_mode:
-        return template('<b>This is the test method saying Hello verbosely</b>!', name=name)
-    else:
-        return 'Hello!'
-
-@route('/<network_id>/generate_ndex_heat_kernel', method='GET')
-def generate_heat_kernel(network_id):
-
-    if password is not None and ousername is not None:
-        myNdex = nc.Ndex("http://ndexbio.org", username=username, password=password)
-    else:
-        myNdex = nc.Ndex("http://ndexbio.org")
-    myNet = myNdex.get_complete_network(network_id)
-    wrapped = ahk.NdexToGeneSif(myNet)
-    edges=wrapped.edgeList()
-    ker = kernel.SciPYKernel(edges)
+def create_kernel(sif_network):
+    """Generate a kernel for a Sif network and write it to disk, returning a uuid."""
+    logging.info('Diffusion is now creating a kernel for the sif network')
+    edges = sif_network.edgeList()
+    diffusion_kernel = kernel.SciPyKernel(edges)
     kernel_id=uuid.uuid1()
-    ker.writeKernel('kernels/{0}'.format(str(kernel_id)))
-    
-    return json.dumps({'kernel_id':str(kernel_id)})
+    logging.info('Diffusion is now writing the kernel with kernel id: {0} to disk'.format(str(kernel_id)))
+    diffusion_kernel.writeKernel('kernels/{0}'.format(str(kernel_id)))
+    return kernel_id
 
-@route('/generate_network_heat_kernel', metod='POST')
-def generate_heat_kernel(network_id):
-    dict=json.load(request.body)
-    
-    ker = kernel.SciPYKernel(dict.get('network'), time_T=opts.diffusion_time)
-    
+def diffuse_against_kernel(kernel_id, identifier_set):
+    """Diffuse an identifier_set against the generated kernel"""
+    logging.info('Diffusion is now loading the kernel with kernel id: {0} for use'.format(str(kernel_id)))
+    ker = EstablishedKernel('kernels/{0}'.format(kernel_id))
+    logging.info('Diffusion is now diffusing against the kernel with the identifier_set')
+    queryVector = ahk.queryVector(identifier_set, ker.labels)
+    diffused_network=ker.diffuse(queryVector)
+    return sorted(diffused.items(), key=operator.itemgetter(1), reverse=True)
 
-@route('/rank_entities', method='POST')
-def diffuse_and_rank():
-    dict=json.load(request.body)
-    get_these=dict.get('identifier_set')
-    kernel_id=dict.get('kernel_id')
-    if not get_these:
-        abort(401, "requires identifier_set parameter in POST data")
-    if not kernel_id:
-        abort(401, "requires kernel_id parameter in POST data")
+def cyToNDEx(cx):
+  """Converts cx json into NDEx json"""
+  #TODO IMPL
+  return cx
 
-    if kernel_id is not current_kernel_id:
-        try:
-            ker=EstablishedKernel('kernels/{0}'.format(kernel_id))
-        except IOError:
-            abort(401, "could not find kernel file matching kernel_id")
-    
-    queryVec=ahk.queryVector(get_these,ker.labels)
-    diffused=ker.diffuse(queryVec)
-    sorted_diffused = sorted(diffused.items(), key=operator.itemgetter(1), reverse=True)
-    dict_out={"ranked_entities":sorted_diffused}
-    return json.dumps(dict_out)
+def main():
+  args = sys.argv
+  num_args = len(args)
+  logging.info('Diffusion was called with {0} arguments'.format(num_args))
+  if num_args != 2:
+    error_message = 'Diffusion expected 2 arguments, recieved: {0}\n'.format(num_args)
+    log.error(error_message)
+    sys.stderr.write(error_message)
+  else:
+    log.info('Evoking diffuse...')
+    ranked_entities = diffuse(args[1], args[2])
+    log.info('Writing reply...')
+    print(ranked_entites)
 
-run(app, host='0.0.0.0', port=5602)
+

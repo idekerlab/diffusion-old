@@ -1,7 +1,7 @@
 awscli==1.11.3
 backports.ssl-match-hostname==3.4.0.2
 botocore==1.4.61
-bottle==0.12.10
+bottle==0.12.20
 cached-property==1.3.0
 chardet==2.2.1
 colorama==0.3.7

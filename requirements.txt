@@ -23,7 +23,7 @@ jsonschema==2.5.1
 kitchen==1.1.1
 ndex==3.0.11
 networkx==1.11
-numpy==1.11.2
+numpy==1.22.0
 policycoreutils-default-encoding==0.1
 pyasn1==0.1.9
 pycurl==7.19.0
